@@ -1,19 +1,27 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-import kagglehub
 import os
+import kagglehub
 
-st.set_page_config(page_title="Income KMeans Clustering", layout="centered")
+# -------------------------------
+# Page Configuration
+# -------------------------------
+st.set_page_config(
+    page_title="Income K-Means Clustering",
+    layout="centered"
+)
 
-st.title("💰 Income Clustering using K-Means")
-st.write("K-Means clustering on Age vs Income dataset")
+st.title("💰 Income Analysis using K-Means Clustering")
+st.write("Clustering people based on **Age** and **Income ($)**")
 
-# ---------------------------
+# -------------------------------
 # Load Dataset
-# ---------------------------
+# -------------------------------
 @st.cache_data
 def load_data():
     path = kagglehub.dataset_download("duajanmuhammed/kmean-data")
@@ -24,31 +32,36 @@ def load_data():
 
 df = load_data()
 
-st.subheader("Dataset Preview")
-st.dataframe(df.head())
+# -------------------------------
+# Display Dataset
+# -------------------------------
+st.subheader("📄 Dataset Preview")
+st.dataframe(df)
 
-# ---------------------------
-# Sidebar Controls
-# ---------------------------
-st.sidebar.header("Model Parameters")
-k = st.sidebar.slider("Number of clusters (k)", min_value=2, max_value=6, value=3)
-
-# ---------------------------
-# Model Training
-# ---------------------------
+# -------------------------------
+# Select Features
+# -------------------------------
 x = df[['Age', 'Income($)']]
 
-kmeans = KMeans(n_clusters=k, random_state=0, n_init=10)
-labels = kmeans.fit_predict(x)
+# -------------------------------
+# K-Means Model
+# -------------------------------
+kmeans = KMeans(n_clusters=3, random_state=0, n_init=10)
+df['Cluster'] = kmeans.fit_predict(x)
 
-df['Cluster'] = labels
+# -------------------------------
+# Display Clustered Data
+# -------------------------------
+st.subheader("📊 Clustered Income Data")
+st.dataframe(df)
 
-# ---------------------------
+# -------------------------------
 # Visualization
-# ---------------------------
-st.subheader("Cluster Visualization")
+# -------------------------------
+st.subheader("📈 Age vs Income Clustering")
 
 fig, ax = plt.subplots()
+
 scatter = ax.scatter(
     df['Age'],
     df['Income($)'],
@@ -58,18 +71,20 @@ scatter = ax.scatter(
 
 ax.set_xlabel("Age")
 ax.set_ylabel("Income ($)")
-ax.set_title(f"K-Means Clustering (k={k})")
+ax.set_title("K-Means Clustering (k = 3)")
 
 st.pyplot(fig)
 
-# ---------------------------
+# -------------------------------
 # Cluster Centers
-# ---------------------------
-st.subheader("Cluster Centers")
+# -------------------------------
+st.subheader("🎯 Cluster Centers (Income Groups)")
+
 centers = pd.DataFrame(
     kmeans.cluster_centers_,
-    columns=['Age', 'Income($)']
+    columns=["Age", "Income($)"]
 )
+
 st.dataframe(centers)
 
-st.success("Clustering completed successfully!")
+st.success("Income clustering completed successfully!")
