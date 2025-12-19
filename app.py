@@ -56,4 +56,22 @@ if st.sidebar.button("Find Income Group"):
 
     st.subheader(f"Result: {group}")
 
-    col1, col2 =
+    col1, col2 = st.columns(2)
+    col1.metric("Age", input_age)
+    col2.metric("Income", f"${input_income:,}")
+
+    group_data = df[df["Income Group"] == group]
+
+    st.info(f"""
+    **Group Statistics**
+    - Total people: {len(group_data)}
+    - Average Age: {group_data['Age'].mean():.1f}
+    - Average Income: ${group_data['Income($)'].mean():,.2f}
+    """)
+else:
+    st.info("Enter values and click **Find Income Group**.")
+
+# ---------------- Dataset View ----------------
+st.divider()
+if st.checkbox("Show Dataset"):
+    st.dataframe(df, use_container_width=True)
