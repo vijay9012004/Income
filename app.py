@@ -1,107 +1,76 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
 import os
 import kagglehub
 
-# ---------------------------------
-# Page Config
-# ---------------------------------
-st.set_page_config(page_title="Income Prediction App", layout="centered")
+# ---------------- Page Config ----------------
+st.set_page_config(page_title="Income Group Finder", page_icon="💰")
 
-st.title("💰 Income Clustering using K-Means")
-st.write("Enter **Age** to see which **Income group (cluster)** it belongs to")
-
-# ---------------------------------
-# Load Dataset
-# ---------------------------------
+# ---------------- Load Data ----------------
 @st.cache_data
 def load_data():
     path = kagglehub.dataset_download("duajanmuhammed/kmean-data")
-    files = os.listdir(path)
-    csv_file = [f for f in files if f.endswith(".csv")][0]
+    csv_file = [f for f in os.listdir(path) if f.endswith(".csv")][0]
     return pd.read_csv(os.path.join(path, csv_file))
 
 df = load_data()
 
-# ---------------------------------
-# Train Model
-# ---------------------------------
-X = df[['Age', 'Income($)']]
+# ---------------- Create Income Groups ----------------
+# Rule-based grouping (NO ML)
+low_thresh = df['Income($)'].quantile(0.33)
+high_thresh = df['Income($)'].quantile(0.66)
 
-kmeans = KMeans(n_clusters=3, random_state=0, n_init=10)
-df['Cluster'] = kmeans.fit_predict(X)
+def income_group(income):
+    if income <= low_thresh:
+        return "Low Income Group"
+    elif income <= high_thresh:
+        return "Middle Income Group"
+    else:
+        return "High Income Group"
 
-# ---------------------------------
-# User Input
-# ---------------------------------
-st.subheader("🔢 Enter Age")
+df["Income Group"] = df["Income($)"].apply(income_group)
 
-age_input = st.number_input(
-    "Age",
-    min_value=int(df['Age'].min()),
-    max_value=int(df['Age'].max()),
-    value=int(df['Age'].mean())
+# ---------------- UI ----------------
+st.title("💰 Income Group Finder (Without ML)")
+st.write("Enter age and income to determine income category.")
+
+st.sidebar.header("User Input")
+input_age = st.sidebar.slider(
+    "Select Age",
+    int(df['Age'].min()),
+    int(df['Age'].max()),
+    int(df['Age'].mean())
 )
 
-# ---------------------------------
-# Predict Income Cluster
-# ---------------------------------
-# Find nearest income value for the given age
-mean_income = df.groupby('Age')['Income($)'].mean()
-nearest_age = mean_income.index[
-    np.abs(mean_income.index - age_input).argmin()
-]
-estimated_income = mean_income.loc[nearest_age]
-
-prediction = kmeans.predict([[age_input, estimated_income]])
-
-# ---------------------------------
-# Output Display
-# ---------------------------------
-st.subheader("📊 Prediction Result")
-
-st.write(f"**Entered Age:** {age_input}")
-st.write(f"**Estimated Income ($):** {int(estimated_income)}")
-st.success(f"**Income Cluster:** {int(prediction[0])}")
-
-# ---------------------------------
-# Plot
-# ---------------------------------
-st.subheader("📈 Age vs Income Clustering")
-
-fig, ax = plt.subplots()
-
-ax.scatter(
-    df['Age'],
-    df['Income($)'],
-    c=df['Cluster'],
-    cmap='viridis',
-    label='Existing Data'
+input_income = st.sidebar.number_input(
+    "Enter Income ($)",
+    value=int(df['Income($)'].median()),
+    step=1000
 )
 
-ax.scatter(
-    age_input,
-    estimated_income,
-    color='red',
-    s=200,
-    marker='X',
-    label='Your Input'
-)
+# ---------------- Prediction ----------------
+if st.sidebar.button("Find Income Group"):
+    group = income_group(input_income)
 
-ax.set_xlabel("Age")
-ax.set_ylabel("Income ($)")
-ax.set_title("K-Means Income Clustering")
-ax.legend()
+    st.subheader(f"Result: {group}")
 
-st.pyplot(fig)
+    col1, col2 = st.columns(2)
+    col1.metric("Age", input_age)
+    col2.metric("Income", f"${input_income:,}")
 
-# ---------------------------------
-# Show Dataset
-# ---------------------------------
-with st.expander("📄 View Dataset"):
-    st.dataframe(df)
+    group_data = df[df["Income Group"] == group]
+
+    st.info(f"""
+    **Group Statistics**
+    - Total people: {len(group_data)}
+    - Average Age: {group_data['Age'].mean():.1f}
+    - Average Income: ${group_data['Income($)'].mean():,.2f}
+    """)
+else:
+    st.info("Enter values in the sidebar and click **Find Income Group**.")
+
+# ---------------- Dataset Display ----------------
+st.divider()
+if st.checkbox("Show Dataset"):
+    st.dataframe(df, use_container_width=True)
